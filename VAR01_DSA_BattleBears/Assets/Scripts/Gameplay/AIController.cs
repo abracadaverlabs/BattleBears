@@ -14,18 +14,21 @@ public class AIController : BaseTeddy
 
     private Outpost currentOutpost;
     private BaseTeddy currentEnemy;
+    public ShrinkRay shrinkRay;
 
     private enum State
     {
         Idle,
         MovingToOutpost,
-        ChasingEnemy
+        ChasingEnemy,
+        ShrinkRay
     }
 
     protected override void Start()
     {
         base.Start();
 
+        shrinkRay = FindObjectOfType<ShrinkRay>();
         agent = GetComponent<NavMeshAgent>();
 
         //We start our AI in the Idle state
@@ -51,6 +54,9 @@ public class AIController : BaseTeddy
             case State.ChasingEnemy:
                 StartCoroutine(OnChasingEnemyState());
                 break;
+            case State.ShrinkRay:
+                StartCoroutine(OnMovingToShrinkRay() );
+                break;
         }
     }
 
@@ -58,7 +64,7 @@ public class AIController : BaseTeddy
     IEnumerator OnIdleState ()
     {
         //This is the start of the state
-        //print("I am now idle");
+        print("I am now idle");
         
         //We keep repeating this code, using an 'infite' while-loop
         //This is the update of the state
@@ -67,16 +73,31 @@ public class AIController : BaseTeddy
             //This pauses the Coroutine function for one 'FixedUpdate', which is 0.02 seconds
             yield return new WaitForFixedUpdate();
 
-            if (currentOutpost != null)
+            if (currentOutpost != null && !isShrank)
+            {
+                if (Random.Range(0, 2) == 0)
+                {
+                    SetState(State.ShrinkRay);
+                }
+                else
+                {
+                    SetState(State.MovingToOutpost);
+                }
+                
+            }
+            else if (currentOutpost != null)
             {
                 SetState(State.MovingToOutpost);
             }
             else
             {
-                LookForOutpost();
+
+                   LookForOutpost();
             }
         }
     }
+
+
 
     //When a function returns 'IENumerator', we consider it a Coroutine
     IEnumerator OnMovingToOutpostState()
@@ -144,6 +165,27 @@ public class AIController : BaseTeddy
         }
     }
 
+
+    //Teddy will move to shrink ray, once they are shrank they will move back to the idle state
+    IEnumerator OnMovingToShrinkRay()
+    {
+        print("I want to get small!");
+
+        agent.SetDestination(shrinkRay.transform.position);
+        while (true)
+        {
+            yield return new WaitForFixedUpdate();
+            //If they are already shrank
+            if (isShrank == true)
+            {
+                //Forget about shrinking and go back to idle state
+                SetState(State.Idle);
+            }
+
+            //LookForEnemies();
+        }
+    }
+
     private void Update()
     {
         //This code was just here for testing. Leaving it here for reference
@@ -160,6 +202,7 @@ public class AIController : BaseTeddy
         int r = Random.Range(0, GameManager.instance.outposts.Length);
         currentOutpost = GameManager.instance.outposts[r];
     }
+
 
     private void LookForEnemies ()
     {

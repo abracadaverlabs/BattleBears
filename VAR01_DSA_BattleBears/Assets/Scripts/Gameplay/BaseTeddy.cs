@@ -9,10 +9,13 @@ public class BaseTeddy : MonoBehaviour
     public int health;
     public int attackPower;
     public float fieldOfView;
+    public bool isShrank;
+    public float shrinkMagnitude = .5f;
 
     protected Animator anim;
 
     private Eye[] eyes;
+    private float shrinkTimerCount = 10f;
 
     //We make this function protected (= accessible to inheriting classes, but not to others)
     //We make this function virtual (= can be overridden)
@@ -98,4 +101,30 @@ public class BaseTeddy : MonoBehaviour
     {
         anim.SetBool("IsDead", true);
     }
+
+
+    //When a teddy runs into the shrink ray power up (to become harder to hit), he becomes smaller and calls a coroutine to embiggen him shrinkTimerCount seconds later
+    public void OnTriggerEnter(Collider other)
+    {
+        if (other.gameObject.GetComponent<ShrinkRay>() && !isShrank)
+        {
+            print("Getting small!");
+            transform.localScale -= new Vector3(shrinkMagnitude, shrinkMagnitude, shrinkMagnitude); //not keeping it DRY - not sure how to simplify that vector3, sorry!
+            isShrank = true;
+            StartCoroutine(ShrinkTimer());
+        }
+
+        print("Not Triggered!");
+
+    }
+
+    //This resizes the teddy to their original size and resets the isShrank bool to false
+    IEnumerator ShrinkTimer()
+    {
+        yield return new WaitForSeconds(shrinkTimerCount);
+        print("Getting big!");
+        transform.localScale += new Vector3 (shrinkMagnitude, shrinkMagnitude, shrinkMagnitude);
+        isShrank = false;
+    }
+
 }

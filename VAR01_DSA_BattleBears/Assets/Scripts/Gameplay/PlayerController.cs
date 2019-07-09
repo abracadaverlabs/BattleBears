@@ -8,12 +8,23 @@ public class PlayerController : BaseTeddy
     public float jumpHeight;
     public float respawnTime;
 
+    public RaycastHit groundCheck;
+
+    //Will use this new value to keep track of the total mouse inputs, necessary to clamp camera
+    float totalMouseXInput;
+    float totalMouseYInput;
+
+    //These values will hold my preferred clamp values, set in the inspector
+    public float backwardsClamp;
+    public float strafeClamp;
+
     public GameObject camPivot;
 
     private Rigidbody rb;
 
     private Vector3 respawnPosition;
     private int startingHealth;
+    private float onGroundCheck = .1f;
 
     // Start is called before the first frame update
     protected override void Start()
@@ -38,6 +49,11 @@ public class PlayerController : BaseTeddy
         float horizontalInput = Input.GetAxis("Horizontal");
         float verticalInput = Input.GetAxis("Vertical");
 
+        //Clamps vertical and horizontal input so that player is slower when moving backwards or sideways
+        verticalInput = Mathf.Clamp(verticalInput, backwardsClamp, 1f);
+        horizontalInput = Mathf.Clamp(horizontalInput, -strafeClamp, strafeClamp);
+
+
         //We update these parameters in the Animator, the Animator handles the animation itself.
         anim.SetFloat("HorizontalInput", horizontalInput);
         anim.SetFloat("VerticalInput", verticalInput);
@@ -45,15 +61,23 @@ public class PlayerController : BaseTeddy
         //We set the x and z values based on the userinput. y should not change, so we set it to whatever the velocity already was
         Vector3 input = new Vector3(horizontalInput * movementSpeed, rb.velocity.y, verticalInput * movementSpeed);
 
+
         //We rotate the input vector based on the rotation of the player
         //This way, the player moves in it's own forward direction when forward is pressed.
         Vector3 rotatedInput = transform.TransformVector(input);
 
-        if (Input.GetKeyDown(KeyCode.Space))
+
+        if (Physics.Raycast(transform.position, Vector3.down, out groundCheck, onGroundCheck))
         {
-            rotatedInput.y = jumpHeight;
-            anim.SetTrigger("Jump");
+
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                rotatedInput.y = jumpHeight;
+                anim.SetTrigger("Jump");
+            }
         }
+
+
 
         //Instead of using transform.position to change the objects position, we use velocity and the physics engine moves the character
         //This avoids issues when colliding with objects
@@ -62,11 +86,15 @@ public class PlayerController : BaseTeddy
         float mouseXInput = Input.GetAxis("Mouse X");
         float mouseYInput = Input.GetAxis("Mouse Y");
 
+        //Keep total value of mouse input to later help clamp our camPivot
+        totalMouseXInput += Input.GetAxis("Mouse X");
+        totalMouseYInput += Input.GetAxis("Mouse Y");
+
         //We rotate the character to look left and right
         transform.Rotate(0, mouseXInput, 0);
 
-        //We rotate the cam-pviot to loop up and down. This makes the camera rotate and move at the same time
-        camPivot.transform.Rotate(-mouseYInput, 0, 0);
+        //We set the campivot rotation to totalMouseY (clamped to a 170 degree area) and totalmouseXInput. This makes the camera rotate and move at the same time, but also limits vertical movement
+        camPivot.transform.eulerAngles = new Vector3(-Mathf.Clamp(totalMouseYInput, -70f, 90f), totalMouseXInput, 0);
 
         //If left mouse button is pressed...
         if (Input.GetMouseButtonDown(0))
